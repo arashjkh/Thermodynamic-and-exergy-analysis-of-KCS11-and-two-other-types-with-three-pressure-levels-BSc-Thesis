@@ -1,0 +1,300 @@
+		                    " KCS111a "
+
+PROCEDURE pinchpoint_eva(T_s_e, T_s_i, h_i, h_e, h_s_i, h_s_e, m_dot_f, m_dot_s, P, x, n: DELTAT[0...n], T_f[0...n], T_s[0...n], Qu_eva_f[1], h_f[0...n])
+	
+	$COMMON c_CO2, c_O2, c_N2, c_H2O
+
+	c = c_O2*Cp(O2,T = (T_s_i + T_s_e) / 2)+c_N2*Cp(N2,T = (T_s_i + T_s_e) / 2)+c_CO2*Cp(CO2,T = (T_s_i + T_s_e) / 2)+c_H2O*Cp(H2O,T = (T_s_i + T_s_e) / 2)
+	deltah_f = (h_e-h_i) / n
+	deltah_s = (h_s_i-h_s_e) / n
+
+	k = 0   
+	REPEAT
+	     h_f_k = h_i + deltah_f * k
+          Call NH3H2O(234, P, x, h_f_k: T_f[k], P_f[k], x_f[k], h_f[k], s_f[k], u_f[k], v_f[k], Qu_f[k])
+          h_s[k] = h_s_e + deltah_s * k
+	     T_s[k] = -(m_dot_f * (h_i - h_f[k]) / m_dot_s / c) + T_s_e
+	     DELTAT[k] = T_s[k] - T_f[k]
+{	     DELTAT[k] = T_s_e - T_f[k] + (h_f[k] - h_i) / (h_e - h_i) * (T_s_i - T_s_e)}
+	     IF (DELTAT[k] < 8.01) AND (DELTAT[k] > 7.99) THEN
+	          Call NH3H2O(123, T_f[k], P, x: T_eva_f[1], P_eva_f[1], x_eva_f[1], h_eva_f[1], s_eva_f[1], u_eva_f[1], v_eva_f[1], Qu_eva_f[1])
+
+	     ENDIF
+	     k = k + 1
+	UNTIL (k > n)
+	k = 0
+	j = 1
+	REPEAT
+	     i = 0
+	     REPEAT
+	          IF ( DELTAT[i] > DELTAT[i+1] ) THEN
+	               temp = DELTAT[i]
+                    DELTAT[i] = DELTAT[i+1]
+                    DELTAT[i+1] = temp
+	          ENDIF
+	          i = i + 1
+	          UNTIL (i > n-j)
+	     j = j + 1
+	UNTIL (j > n) 
+	
+END
+
+PROCEDURE pinchpoint_reg(h_i, h_e, h_s_i, h_s_e, m_dot_f, m_dot_s, P_i, P_s_i, x_i, x_s_i, n: DELTAT[0...n], T_f[0...n], T_s[0...n], Qu_reg_f[1], h_f[0...n], h_s[0...n])
+	
+	deltah_f = (h_e - h_i) / n
+	deltah_s = (h_s_i - h_s_e) / n
+
+	k = 0
+	REPEAT       
+	     h_f_k = h_i + deltah_f * k
+          Call NH3H2O(234, P_i, x_i, h_f_k: T_f[k], P_f[k], x_f[k], h_f[k], s_f[k], u_f[k], v_f[k], Qu_f[k])
+          h_s_k = h_s_e + deltah_s * k
+          Call NH3H2O(234, P_s_i, x_s_i, h_s_k: T_s[k], P_s[k], x_s[k], h_s[k], s_s[k], u_s[k], v_s[k], Qu_s[k])
+	     DELTAT[k] = T_s[k] - T_f[k]
+	     IF (DELTAT[k] < 8.01) AND (DELTAT[k] > 7.99) THEN
+	          Call NH3H2O(123, T_f[k], P_i, x_i: T_reg_f[1], P_reg_f[1], x_reg_f[1], h_reg_f[1], s_reg_f[1], u_reg_f[1], v_reg_f[1], Qu_reg_f[1])
+	     ENDIF
+	     k = k + 1  
+	UNTIL (k > n)
+	j = 1
+	REPEAT
+	     i = 0
+	     REPEAT
+	          IF ( DELTAT[i] > DELTAT[i+1] ) THEN
+	               temp = DELTAT[i]
+                    DELTAT[i] = DELTAT[i+1]
+                    DELTAT[i+1] = temp
+	          ENDIF
+	          i = i + 1
+	          UNTIL (i > n-j)
+	     j = j + 1
+	UNTIL (j > n) 	
+
+END
+
+                                                      			
+
+"! Calculating mass ratios"
+
+y_CO2=0.03 ;        MW_CO2=MolarMass(CO2) ;        c_CO2=y_CO2*MW_CO2/yMW_total
+y_H2O=0.07 ;        MW_H2O=MolarMass(H2O) ;         c_H2O=y_H2O*MW_H2O/yMW_total
+y_O2=0.15 ;           MW_O2=MolarMass(O2) ;              c_O2=y_O2*MW_O2/yMW_total
+y_N2=0.75 ;           MW_N2=MolarMass(N2) ;               c_N2=y_N2*MW_N2/yMW_total
+
+yMW_total = (y_CO2*MW_CO2) + (y_H2O*MW_H2O) + (y_O2*MW_O2) + (y_N2*MW_N2)
+
+T_hs_i = 413.15 [K]                    "! Inlet temperature of hot source"
+T_con_e = 308.15 [K]                "! Condenser Outlet Temperature"
+T_amb = 298.15 [K]
+P_amb = 1 [bar]
+P_m = 15 [bar]                            "! Medium pressure of the cycle"
+P_h = 25 [bar]                             "! High pressure of the cycle"
+x = 0.6                                           "! Water-Ammonia Concentration"
+m_dot_hs = 3 [kg/s]                   "! Hot source mass flow rate"
+m_dot_f = 0.3 [kg/s]                   "! Main stream mass flow rate"
+eta_turb = 0.85
+eta_pump = 0.7
+Qu_turb_outlet = 0.9                   "! Main stream mass flow rate"
+
+                                                      			
+
+"state 0"
+P[0] = P_amb
+T[0] = T_amb
+h[0] = c_O2*Enthalpy(O2,T=T[0])+c_N2*Enthalpy(N2,T=T[0])+c_CO2*Enthalpy(CO2,T=T[0])+c_H2O*Enthalpy(H2O,T=T[0])
+s[0] = c_O2*Entropy(O2,T=T[0], P=P[0])+c_N2*Entropy(N2,T=T[0], P=P[0])+c_CO2*Entropy(CO2,T=T[0], P=P[0])+c_H2O*Entropy(H2O,T=T[0], P=P[0])
+
+"state 18"
+T[18] = T_hs_i             
+m_dot[18] = m_dot_hs       
+h[18] = c_O2*Enthalpy(O2,T=T[18])+c_N2*Enthalpy(N2,T=T[18])+c_CO2*Enthalpy(CO2,T=T[18])+c_H2O*Enthalpy(H2O,T=T[18])
+s[18] = c_O2*Entropy(O2,T=T[18], P=P[0])+c_N2*Entropy(N2,T=T[18], P=P[0])+c_CO2*Entropy(CO2,T=T[18], P=P[0])+c_H2O*Entropy(H2O,T=T[18], P=P[0])
+
+"state 17"
+{Qu_17 = 0}
+T_17 = 341.510022966
+{T_17 = 341.510022966}
+"315.4 - 0.9 / 319.9 - 0.8 / 327.1 - 0.7 / 338.286 - 0.6 / 353.6 - 0.5 / 372.6 - 0.4 " "! point 17 temp with Qu=0, P=15 & variable x"
+"318.7 - 9 / 326.1 - 11 / 332.5 - 13 / 335.5 - 14 / 341 - 16 / 343.5 - 17 / 346 - 18 / 348.3 - 19 / 350.6 - 20 " "! point 17 temp with Qu=0, x=0.6 & variable P"
+"356.4 - 16 / 359.1 - 17 / 361.7 - 18 / 364.1 - 19 / 366.5 - 20 " "! point 17 temp with Qu=0, x=0.5 & variable P"
+"375.6 - 16 / 378.4 - 17 / 381.1 - 18 / 383.7 - 19 / 386.3 - 20 " "! point 17 temp with Qu=0, x=0.4 & variable P"
+{Call NH3H2O(238, P_m, x, Qu_17: T[17], P[17], x[17], h[17], s[17], u[17], v[17], Qu[17])}
+Call NH3H2O(123, T_17, P_m, x: T[17], P[17], x[17], h[17], s[17], u[17], v[17], Qu[17])
+m_dot[17] = m_dot_f   
+"! x" " 315.4 - 0.9 / 319.9 - 0.8 / 328.577067984 - 0.7 / 341.510022966 - 0.6 / 358.244338122 - 0.5 / 375.920002821 - 0.4 "
+"! m" " 0.2 - 0 / 0.25 - 340.775347708 / 0.3 - 341.47 / 341.6 - 0.35, 0.4, 0.45, 0.5 "
+"! P_m" " 321.6 - 9
+                 328.33 - 11
+                 336.7 - 13 pp_state20,31@10,6
+                 339.462 - 15 / 346 - 17 / 350 - 19 / 353.7 - 21 / 357.1 - 23 / 357.8 - 25"
+"! P_h" " 339.4 - 15 / 339.9 - 17.5 / 340.4 - 20 / 340.9 - 22.5 / 341.47 - 25
+	           342 - 27.5 pp_state20@12
+                342.6 - 30 pp_state20,31@12,4"  
+
+"state 19"
+T[19] = 398.28
+{T[19] = 398.28}
+"! x" " 337.1 - 0.9 / 342.24 - 0.8 / 358.4 - 0.7 / 398.28 - 0.6 / 406.97 - 0.5 / 408.67 - 0.4 "
+"! m" " 370.6 - 0.15 / 371.6 - 0.2 / 410.07 - 0.25 / 394.5 - 0.3 / 374.95 - 0.35 / 367.95 - 0.4 / 363.52 - 0.45 / 359.94 - 0.5 "
+"! P_m" " 321.6 - 9 / 328.33 - 11 / 399.8 - 13 / 339.462 - 15 / 379.9 - 17 / 373.75 - 19 / 370.7 - 21 / 369.05 - 23 / 370.35 - 25"
+"! P_h" " 347.4 - 15 / 354.8 - 17.5 / 340.4 - 20 / 374.8 - 22.5 / 394.5 - 25 / 0 - 27.5 / 0 - 30"
+h[19] = c_O2*Enthalpy(O2,T=T[19])+c_N2*Enthalpy(N2,T=T[19])+c_CO2*Enthalpy(CO2,T=T[19])+c_H2O*Enthalpy(H2O,T=T[19])
+s[19] = c_O2*Entropy(O2,T=T[19],P=P[0])+c_N2*Entropy(N2,T=T[19], P=P[0])+c_CO2*Entropy(CO2,T=T[19], P=P[0])+c_H2O*Entropy(H2O,T=T[19], P=P[0])
+m_dot[19] = m_dot[18]
+
+"state 20"
+{T[20] = 380}         "! assumed"
+{T[20] = 332.086162160}
+T[20] = T[17] + 8
+"! x" " * - 0.9 / * - 0.8 / * - 0.7 / * - 0.6 / * - 0.5 / * - 0.4 "
+h[20] = c_O2*Enthalpy(O2,T=T[20])+c_N2*Enthalpy(N2,T=T[20])+c_CO2*Enthalpy(CO2,T=T[20])+c_H2O*Enthalpy(H2O,T=T[20])
+s[20] = c_O2*Entropy(O2,T=T[20], P=P[0])+c_N2*Entropy(N2,T=T[20], P=P[0])+c_CO2*Entropy(CO2,T=T[20], P=P[0])+c_H2O*Entropy(H2O,T=T[20], P=P[0])
+m_dot[20] = m_dot[18]
+
+"state 1"
+m_dot[19] * (h[19] - h[20]) = m_dot[17] * (h_1 - h[17])
+m_dot[1] = m_dot[17]
+Call NH3H2O(234, P_m, x, h_1: T[1], P[1], x[1], h[1], s[1], u[1], v[1], Qu[1])
+
+n = 99
+CALL pinchpoint_eva(T[20], T[19], h[17], h[1], h[19], h[20], m_dot[17], m_dot[19], P_m, x, n: DELTAT_LPeva[0...n], T_LPeva_f[0...n], T_LPeva_s[0...n], Qu_pp_LPeva, h_LPeva_f[0...n])
+"! LPeva pp check"
+DELTAT_LPeva_e = T[19] - T[1]
+DELTAT_LPeva_i = T[20] - T[17]
+
+"state 2"
+Call NH3H2O(128, T[1], P_m, 1: T[2], P[2], x[2], h[2], s[2], u[2], v[2], Qu[2])
+
+"state 3"
+Call NH3H2O(128, T[1], P_m, 0: T[3], P[3], x[3], h[3], s[3], u[3], v[3], Qu[3])
+
+m_dot[1] = m_dot[2] + m_dot[3]
+m_dot[1] * h[1] = m_dot[2] * h[2] + m_dot[3] * h[3]
+
+"state 22 or 7s"            
+Call NH3H2O(235, P_h, x[3], s[3]: T[22], P[22], x[22], h[22], s[22], u[22], v[22], Qu[22])
+
+"state 7"
+eta_pump = (h[22] - h[3]) / (h_7 - h[3]);
+Call NH3H2O(234, P_h, x[3], h_7: T[7], P[7], x[7], h[7], s[7], u[7], v[7], Qu[7])
+m_dot[7] = m_dot[3]
+
+"state 11"
+m_dot[7] * (h_11 - h[7]) = m_dot[18] * (h[18] - h[19])
+Call NH3H2O(234, P_h, x[3], h_11: T[11], P[11], x[11], h[11], s[11], u[11], v[11], Qu[11])
+m_dot[11] = m_dot[7]
+
+CALL pinchpoint_eva(T[19], T[18], h[7], h[11], h[18], h[19], m_dot[7], m_dot[18], P_h, x[3], n: DELTAT_HPeva[0...n], T_HPeva_f[0...n], T_HPeva_s[0...n], Qu_pp_HPeva, h_HPeva_f[0...n])
+"! HPeva pp check"
+DELTAT_HPeva_e = T[18] - T[11]
+DELTAT_HPeva_i = T[19] - T[7]
+
+"state 12"
+Call NH3H2O(128, T[11], P[11], 1: T[12], P[12], x[12], h[12], s[12], u[12], v[12], Qu[12])
+
+"state 13"
+Call NH3H2O(128, T[11], P[11], 0: T[13], P[13], x[13], h[13], s[13], u[13], v[13], Qu[13])
+
+m_dot[11] = m_dot[12] + m_dot[13]
+m_dot[11] * h[11] = m_dot[12] * h[12] + m_dot[13] * h[13]
+
+"state 4"
+{T_4 = 397.149116707}                "! assumed"
+T_4 = T[13] - 8
+{T_4 = T[13] - 8}
+"! x" " * - 0.9 / * - 0.8 / * - 0.7 / * - 0.6 / * - 0.5 / * - 0.4 "
+Call NH3H2O(123, T_4, P[2], x[2]: T[4], P[4], x[4], h[4], s[4], u[4], v[4], Qu[4])
+m_dot[4] = m_dot[2]
+
+"state 5"
+m_dot[2] * (h[4] - h[2]) = m_dot[13] * (h[13] - h_5)
+Call NH3H2O(234, P[13], x[13], h_5: T[5], P[5], x[5], h[5], s[5], u[5], v[5], Qu[5])
+m_dot[5] = m_dot[13]
+
+CALL pinchpoint_reg(h[2], h[4], h[13], h[5], m_dot[2], m_dot[13], P[2], P[13], x[2], x[13], n: DELTAT_HTreg[0...n], T_HTreg_f[0...n], T_HTreg_s[0...n], Qu_pp_HTreg, h_HTreg_f[0...n], h_HTreg_s[0...n])
+"! HTreg pp check"
+DELTAT_HTreg_e = T[13] - T[4]
+DELTAT_HTreg_i = T[5] - T[2]
+
+"state 15"
+Call NH3H2O(138, T_con_e, x, 0: T[15], P[15], x[15], h[15], s[15], u[15], v[15], Qu[15])
+m_dot[15] = m_dot[17]
+
+"state 16s (23)"
+Call NH3H2O(235, P_m, x, s[15]: T[23], P[23], x[23], h[23], s[23], u[23], v[23], Qu[23])
+
+"state 16"
+eta_pump = (h[23] - h[15]) / (h_16 - h[15])
+Call NH3H2O(234, P_m, x, h_16: T[16], P[16], x[16], h[16], s[16], u[16], v[16], Qu[16])
+m_dot[16] = m_dot[15]
+
+"state 8"
+{T_8 = 316.35}         "! assumed"
+T_8 = T[16] + 8
+{T_8 = T[16] + 8}
+"! x" " * - 0.9 / * - 0.8 / * - 0.7 / * - 0.6 / * - 0.5 / * - 0.4 "
+Call NH3H2O(123, T_8, P[5], x[5]: T[8], P[8], x[8], h[8], s[8], u[8], v[8], Qu[8])
+m_dot[8]=m_dot[5]
+
+"state 6"
+m_dot[5] * (h[5] - h[8]) = m_dot[15] * (h_6 - h[16])
+Call NH3H2O(234, P[16], x[16], h_6: T[6], P[6], x[6], h[6], s[6], u[6], v[6], Qu[6])
+m_dot[6] = m_dot[17]
+
+CALL pinchpoint_reg(h[16], h[6], h[5], h[8], m_dot[16], m_dot[5], P[16], P[5], x[16], x[5], n: DELTAT_LTreg[0...n], T_LTreg_f[0...n], T_LTreg_s[0...n], Qu_pp_LTreg, h_LTreg_f[0...n], h_LTreg_s[0...n])
+"! LTreg pp check"
+DELTAT_LTreg_e = T[5] - T[6]
+DELTAT_LTreg_i = T[8] - T[16]
+
+epsilon = T[17] - T[6]
+
+"state 21"
+m_dot[21] = m_dot[20]
+m_dot[21] * (h[20] - h[21]) = m_dot[6] * (h[17] - h[6])
+h[21] = c_O2*Enthalpy(O2,T=T[21])+c_N2*Enthalpy(N2,T=T[21])+c_CO2*Enthalpy(CO2,T=T[21])+c_H2O*Enthalpy(H2O,T=T[21])
+
+"state 14s (24)"
+Call NH3H2O(258, P[15], s[12], Qu_turb_outlet: T[24], P[24], x[24], h[24], s[24], u[24], v[24], Qu[24])
+
+"state 14"
+eta_turb = ( m_dot[12]*h[12] + m_dot[4]*h[4] - m_dot[14]*h_14) / ( m_dot[12]*h[12] + m_dot[4]*h[4] - m_dot[14]*h[24])
+m_dot[14] = m_dot[4] + m_dot[12]
+Call NH3H2O(248, P[24], h_14, Qu[24]: T[14], P[14], x[14], h[14], s[14], u[14], v[14], Qu[14])
+
+"state 9"
+Call NH3H2O(234, P[14], x[8], h[8]: T[9], P[9], x[9], h[9], s[9], u[9], v[9], Qu[9])
+m_dot[9] = m_dot[8]
+
+"state 10"
+m_dot[10] = m_dot[14] + m_dot[9]
+m_dot[9] * h[9] + m_dot[14] * h[14] = m_dot[10] * h_10
+Call NH3H2O(234, P[14], x[15], h_10: T[10], P[10], x[10], h[10], s[10], u[10], v[10], Qu[10])
+
+" Additional calculations relevant to KCS111a cycle "
+Q_dot_eco = m_dot[6] * (h[17] - h[6]) ; 	{Q_dot_eco2 = m_dot[20] * (h[20] - h[21])}
+Q_dot_LPeva = m_dot[17] * (h[1] - h[17]) ;	{Q_dot_LPeva2 = m_dot[19] * (h[19] - h[20])}
+Q_dot_HPeva = m_dot[7] * (h[11] - h[7]) ;	{Q_dot_HPeva2 = m_dot[18] * (h[18] - h[19])}
+
+Q_dot_net = Q_dot_eco + Q_dot_LPeva + Q_dot_HPeva
+Q_dot_input = Q_dot_net * 1000
+
+Q_dot_HTreg = m_dot[13] * (h[13] - h[5]) ;	{Q_dot_HTreg2 = m_dot[2] * (h[4] - h[2])}
+Q_dot_LTreg = m_dot[5] * (h[5] - h[8]) ;	{Q_dot_LTreg2 = m_dot[16] * (h[6] - h[16])}
+
+
+W_dot_pump2 = m_dot[3] * (h[7] - h[3])
+W_dot_pump1 = m_dot[15] * (h[16] - h[15])
+W_dot_turb = (m_dot[12] * h[12] + m_dot[4] * h[4]) - m_dot[14] * h[14]
+
+W_dot_net = W_dot_turb - W_dot_pump1 - W_dot_pump2
+W_dot_output = W_dot_net * 1000
+
+eta_th = W_dot_net / Q_dot_net * 100
+
+Ex_dot_net = m_dot[18] * (h[18] - h[0] - T[0] * (s[18] - s[0]))
+Ex_dot_input = m_dot[18] * (h[18] - h[0] - T[0] * (s[18] - s[0])) * 1000
+
+eta_ex = W_dot_net / Ex_dot_net * 100
+
+DELTAT_18_19 = T[18] - T[19]
+DELTAT_19_20 = T[19] - T[20]
