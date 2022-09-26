@@ -1,0 +1,184 @@
+		                    " KCS11 "
+
+                                                      			
+
+"! Calculating mass ratios"
+
+y_CO2=0.03 ;        MW_CO2=MolarMass(CO2) ;        c_CO2=y_CO2*MW_CO2/yMW_total
+y_H2O=0.07 ;        MW_H2O=MolarMass(H2O) ;         c_H2O=y_H2O*MW_H2O/yMW_total
+y_O2=0.15 ;           MW_O2=MolarMass(O2) ;              c_O2=y_O2*MW_O2/yMW_total
+y_N2=0.75 ;           MW_N2=MolarMass(N2) ;               c_N2=y_N2*MW_N2/yMW_total
+
+yMW_total = (y_CO2*MW_CO2) + (y_H2O*MW_H2O) + (y_O2*MW_O2) + (y_N2*MW_N2)
+
+                                                      			
+
+"state 0"
+P[0]=1
+T[0]=298.15
+h[0]=c_O2*Enthalpy(O2,T=T[0])+c_N2*Enthalpy(N2,T=T[0])+c_CO2*Enthalpy(CO2,T=T[0])+c_H2O*Enthalpy(H2O,T=T[0])
+s[0]=c_O2*Entropy(O2,T=T[0], P=P[0])+c_N2*Entropy(N2,T=T[0], P=P[0])+c_CO2*Entropy(CO2,T=T[0], P=P[0])+c_H2O*Entropy(H2O,T=T[0], P=P[0])
+
+"state 11"
+x_11=0.6
+P_11=35            "! Main Pressure of the Cycle"
+Qu_11=0
+"! x" " 313.6 - 0.9 / 320.01 - 0.8 / 327.78 - 0.7 / 339.462 - 0.6 / 354.64 - 0.5 / 372.67 - 0.4 "
+"! m" " 329 - 0.15 / 339.27 - 0.2 / 339.57 - 0.25 / 339.462 - 0.3 / 339.24 - 0.35 / 338.98 - 0.4 / 338.76 - 0.45 / 338.57 - 0.5 "
+"! P" " 321.6 - 9 / 328.33 - 11 / 334.2 - 13 / 339.462 - 15 / 344.25 - 17 / 348.68 - 19 / 352.69 - 21 / 355.32 - 23 / 357.92 - 25
+	       360.48 - 27 / 363.05 - 29 / 365.59 - 31 / 368.13 - 33 / 370.7 - 35 / 373.26 - 37 / 375.86 - 39 / 378.5 - 41 / 381.15 - 43 / 383.86 - 45 "
+"! T[12]" "383.15 - 338.4271 / 413.15 - 339.462 / 443.15 - 339.35 "
+T_11=375
+Call NH3H2O(123, T_11, P_11, x_11: T[11], P[11], x[11], h[11], s[11], u[11], v[11], Qu[11])
+{Call NH3H2O(238, P_11, x_11, Qu_11: T[11], P[11], x[11], h[11], s[11], u[11], v[11], Qu[11])}
+m_dot[11]=0.3       "! Main stream mass flow rate"
+
+"state 12"
+T[12]=443.15             "! Inlet temperature"
+m_dot[12]=3         "! Hot source mass flow rate"
+h[12]=c_O2*Enthalpy(O2,T=T[12])+c_N2*Enthalpy(N2,T=T[12])+c_CO2*Enthalpy(CO2,T=T[12])+c_H2O*Enthalpy(H2O,T=T[12])
+s[12]=c_O2*Entropy(O2,T=T[12], P=P[0])+c_N2*Entropy(N2,T=T[12], P=P[0])+c_CO2*Entropy(CO2,T=T[12], P=P[0])+c_H2O*Entropy(H2O,T=T[12], P=P[0])
+
+"state 13"
+T[13]=T[11]+8        
+h[13]=c_O2*Enthalpy(O2,T=T[13])+c_N2*Enthalpy(N2,T=T[13])+c_CO2*Enthalpy(CO2,T=T[13])+c_H2O*Enthalpy(H2O,T=T[13])
+s[13]=c_O2*Entropy(O2,T=T[13],P=P[0])+c_N2*Entropy(N2,T=T[13], P=P[0])+c_CO2*Entropy(CO2,T=T[13], P=P[0])+c_H2O*Entropy(H2O,T=T[13], P=P[0])
+m_dot[13]=m_dot[12]
+
+"state 1"
+P_1=P[11]
+x_1=x[11]
+m_dot[12]*(h[12]-h[13])=m_dot[11]*(h_1-h[11])
+Call NH3H2O(234, P_1, x_1, h_1: T[1], P[1], x[1], h[1], s[1], u[1], v[1], Qu[1])
+m_dot[1]=m_dot[11]
+
+"state 2"
+T_2=T[1]
+P_2=P[1]
+Qu_2=1
+Call NH3H2O(128, T_2, P_2, Qu_2: T[2], P[2], x[2], h[2], s[2], u[2], v[2], Qu[2])
+
+"state 3"
+T_3=T[1]
+P_3=P[1]
+Qu_3=0
+Call NH3H2O(128, T_3, P_3, Qu_3: T[3], P[3], x[3], h[3], s[3], u[3], v[3], Qu[3])
+
+m_dot[1]=m_dot[2]+m_dot[3]
+m_dot[1]*h[1]=m_dot[2]*h[2]+m_dot[3]*h[3]
+
+"state 8"
+T_8=308.15
+x_8=x[11]
+Qu_8=0
+Call NH3H2O(138, T_8, x_8, Qu_8: T[8], P[8], x[8], h[8], s[8], u[8], v[8], Qu[8])
+m_dot[8]=m_dot[11]
+
+"state 15 or 9s"
+P_15=P[11]
+x_15=x[11]
+s_15=s[8]
+Call NH3H2O(235, P_15, x_15, s_15: T[15], P[15], x[15], h[15], s[15], u[15], v[15], Qu[15])
+m_dot[15]=m_dot[8]
+
+"state 9"
+P_9=P[11]
+x_9=x[11]
+eta_pump=(h[15]-h[8])/(h_9-h[8]); eta_pump=0.7
+Call NH3H2O(234, P_9, x_9, h_9: T[9], P[9], x[9], h[9], s[9], u[9], v[9], Qu[9])
+m_dot[9]=m_dot[8]
+
+"state 5"
+T_5=T[9]+8
+P_5=P[3]
+x_5=x[3]
+Call NH3H2O(123, T_5, P_5, x_5: T[5], P[5], x[5], h[5], s[5], u[5], v[5], Qu[5])
+m_dot[5]=m_dot[3]
+
+"state 10"
+P_10=P[11]
+x_10=x[11]
+m_dot[3]*(h[3]-h[5])=m_dot[9]*(h_10-h[9])
+Call NH3H2O(234, P_10, x_10, h_10: T[10], P[10], x[10], h[10], s[10], u[10], v[10], Qu[10])
+m_dot[10]=m_dot[11]
+
+epsilon_1=T[11]-T[10]
+
+"! pinch analysis of reg"
+	"state pp_reg (17)"	
+	P_17=P[9]
+	x_17=x[9]
+	Qu_17=0
+	Call NH3H2O(238, P_17, x_17, Qu_17: T[17], P[17], x[17], h[17], s[17], u[17], v[17], Qu[17])
+	m_dot[17]=m_dot[9]
+
+	"state c_reg (18)"
+	P_18=P[3]
+	x_18=x[3]
+	m_dot[3]*(h[3]-h_18)=m_dot[9]*(h[10]-h[17])
+	Call NH3H2O(234, P_18, x_18, h_18: T[18], P[18], x[18], h[18], s[18], u[18], v[18], Qu[18])
+	m_dot[18]=m_dot[3]
+
+"state 14"
+m_dot[14]=m_dot[13]
+m_dot[14]*(h[13]-h[14])=m_dot[10]*(h[11]-h[10])
+h[14]=c_O2*Enthalpy(O2,T=T[14])+c_N2*Enthalpy(N2,T=T[14])+c_CO2*Enthalpy(CO2,T=T[14])+c_H2O*Enthalpy(H2O,T=T[14])
+
+"state 4s or 16"
+P_16=P[8]
+x_16=x[2]
+{Qu_4=0.9}
+s_16=s[2]
+Call NH3H2O(235, P_16, x_16, s_16: T[16], P[16], x[16], h[16], s[16], u[16], v[16], Qu[16])
+m_dot[16]=m_dot[2]
+
+"state 4"
+P_4=P[8]
+x_4=x[2]
+eta_turb=(h_4-h[2])/(h[16]-h[2]); eta_turb=0.85
+Call NH3H2O(234, P_4, x_4, h_4: T[4], P[4], x[4], h[4], s[4], u[4], v[4], Qu[4])
+m_dot[4]=m_dot[2]
+
+"state 6"
+P_6=P[4]
+x_6=x[5]
+h_6=h[5]
+Call NH3H2O(234, P_6, x_6, h_6: T[6], P[6], x[6], h[6], s[6], u[6], v[6], Qu[6])
+m_dot[6]=m_dot[5]
+
+"state 7"
+m_dot[7]=m_dot[4]+m_dot[6]
+P_7=P[4]
+x_7=x[8]
+m_dot[6]*h[6]+m_dot[4]*h[4]=m_dot[7]*h_7
+Call NH3H2O(234, P_7, x_7, h_7: T[7], P[7], x[7], h[7], s[7], u[7], v[7], Qu[7])
+
+" Additional calculations relevant to KCS11 cycle "
+
+Q_dot_eco=m_dot[10]*(h[11]-h[10]) ; 	{Q_eco2=m_dot[13]*(h[13]-h[14])}
+Q_dot_eva=m_dot[11]*(h[1]-h[11]) ;	{Q_eva2=m_dot[12]*(h[12]-h[13])}
+Q_dot_reg=m_dot[9]*(h[10]-h[9]) ;	{Q_dot_reg2=m_dot[3]*(h[3]-h[5])}
+
+Q_dot_net=Q_dot_eco+Q_dot_eva
+Q_dot_in=Q_dot_net*1000
+
+W_dot_pump=m_dot[8]*(h[9]-h[8])
+W_dot_turb=m_dot[2]*(h[2]-h[4])
+
+W_dot_net=W_dot_turb-W_dot_pump
+W_dot_out=W_dot_net*1000
+
+eta_th=W_dot_net/Q_dot_net*100
+
+Ex_dot_net=m_dot[12]*(h[12]-h[0]-T[0]*(s[12]-s[0]))
+Ex_dot_in=Ex_dot_net*1000
+
+eta_ex=W_dot_net/Ex_dot_net*100
+
+DELTAT_1_11=T[1]-T[11]
+DELTAT_12_13=T[12]-T[13]
+DELTAT_eva_cs_in=T[13]-T[11]
+DELTAT_eva_cs_out=T[12]-T[1]
+DELTAT_reg_cs_in=T[5]-T[9]
+DELTAT_reg_cs_out=T[3]-T[10]
+DELTAT_reg_sat=T[18]-T[17]
